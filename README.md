@@ -11,7 +11,9 @@ In Week 11 I used Ollama with Granite 4.1 and a mock model for tests. The shop i
 
 ## Week 12 - Tools and Guardrails
 
-I changed my assistant so the model can ask to check a repair price instead of using keyword rules for prices. In my FakeModel test, a flat tire question used the price tool and returned $25. The toolbox also refused a booking request when the model supplied the name Dana Cruz but the customer had not typed that name. A booking goes into a waiting queue, and only staff approval adds it to the confirmed list. I added instructions telling the model to greet customers who only say hello and to collect the service and full name before requesting a booking. The fake-model tests pass without Ollama, but the real-model interaction and Exercise 3 still need to be verified on a computer running Ollama.
+I updated my bike repair chatbot so the model can request the repair-price tool rather than relying on price keywords. During the real Ollama test, Jamie answered a flat tire price question correctly with $25 and greeted me when I said hello. The toolbox refused a FakeModel booking request that supplied the name Dana Cruz before the customer had typed it. In another real test, Jamie collected the customer's name, sent the flat tire booking to the approval queue, and the staff review approved it once, resulting in one confirmed booking. I added an instruction telling Jamie to greet customers who only say hello, ask for the repair type and full name before booking, and not claim a booking is confirmed before staff approves it. I also tested the order-address guardrail in Exercise 3: without it, Ollama supplied a made-up address, so I rejected the request and retained the guardrail.
+
+The local automated test run showed 40 passing tests. The outfitters example also has a fallback model that uses keyword responses when Ollama cannot answer.
 
 ## Running the Project
 
