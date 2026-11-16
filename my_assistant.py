@@ -1,61 +1,62 @@
 # my_assistant.py
 # Author: Nikita Lemeshenko
 
-HANDOFF_WORDS = ["book", "schedule", "cancel", "payment"]
+HANDOFF_WORDS = ["cancel", "reschedule", "payment", "card"]
+MAX_TOOL_ROUNDS = 3
 
 
 class RepairAssistant:
-    """A bike shop assistant that uses a tool and an AI model."""
+    """Let a model choose tools but check requests and protect sensitive actions."""
 
-    def __init__(self, name, instructions, price_tool, model):
+    def __init__(self, name, instructions, tools, model):
+        """Set the assistant's name, instructions, toolbox, model, and history."""
         self.name = name
         self.instructions = instructions
-        self.price_tool = price_tool
+        self.tools = tools
         self.model = model
         self.history = []
 
     def respond(self, user_message):
+        """Save the question and the answer to the conversation history."""
         self.history.append({"role": "user", "content": user_message})
-
         reply = self.choose_reply(user_message)
-
         self.history.append({"role": "assistant", "content": reply})
         return reply
 
     def choose_reply(self, user_message):
-        text = user_message.lower()
-
-        if self.needs_human(text):
-            return "I can't make changes to appointments. Please speak to an employee."
-
-        if "price" in text or "cost" in text or "how much" in text:
-            return self.price_reply(user_message)
-
+        """Send risky questions to staff before asking the model."""
+        if self.needs_human(user_message.lower()):
+            return "I can't change or cancel that here. Please speak to an employee."
         return self.model_reply()
 
     def needs_human(self, text):
+        """Check for actions that must be handled directly by an employee."""
         for word in HANDOFF_WORDS:
             if word in text:
                 return True
         return False
 
-    def price_reply(self, user_message):
-        service = self.price_tool.find_service(user_message)
-
-        if service is None:
-            return "Which service? I can check flat tire, brake adjustment, or chain replacement."
-
-        price = self.price_tool.price_for(service)
-
-        if price is None:
-            return "Sorry, I don't have a price for that service."
-
-        return f"The price for {service} is ${price}."
-
     def model_reply(self):
-        reply = self.model.reply(self.instructions, self.history)
-
-        if reply is None:
-            return "Sorry, I can't answer that right now. Please ask an employee."
-
-        return reply
+        """Run at most three checked tool calls before returning a reply."""
+        rounds = 0
+        while rounds < MAX_TOOL_ROUNDS:
+            decision = self.model.decide(
+                self.instructions, self.history, self.tools.tool_list()
+            )
+            if decision is None:
+                return "Sorry, I can't answer that right now. Please ask an employee."
+            if "text" in decision:
+                return decision["text"]
+            name = decision["tool"]
+            arguments = decision["arguments"]
+            result = self.tools.run(name, arguments, self.history)
+            self.history.append(
+                {
+                    "role": "tool",
+                    "tool_name": name,
+                    "arguments": arguments,
+                    "content": result,
+                }
+            )
+            rounds += 1
+        return "Sorry, I couldn't finish that. Please speak to an employee."
